@@ -1,59 +1,186 @@
-<div>Teachable Machine Image Model</div>
-<button type="button" onclick="init()">Start</button>
-<div id="webcam-container"></div>
-<div id="label-container"></div>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
-<script type="text/javascript">
-    // More API functions here:
-    // https://github.com/googlecreativelab/teachablemachine-community/tree/master/libraries/image
-
-    // the link to your model provided by Teachable Machine export panel
-    const URL = "https://teachablemachine.withgoogle.com/models/6IfxNkm2O/";
-
-    let model, webcam, labelContainer, maxPredictions;
-
-    // Load the image model and setup the webcam
-    async function init() {
-        const modelURL = URL + "model.json";
-        const metadataURL = URL + "metadata.json";
-
-        // load the model and metadata
-        // Refer to tmImage.loadFromFiles() in the API to support files from a file picker
-        // or files from your local hard drive
-        // Note: the pose library adds "tmImage" object to your window (window.tmImage)
-        model = await tmImage.load(modelURL, metadataURL);
-        maxPredictions = model.getTotalClasses();
-
-        // Convenience function to setup a webcam
-        const flip = true; // whether to flip the webcam
-        webcam = new tmImage.Webcam(200, 200, flip); // width, height, flip
-        await webcam.setup(); // request access to the webcam
-        await webcam.play();
-        window.requestAnimationFrame(loop);
-
-        // append elements to the DOM
-        document.getElementById("webcam-container").appendChild(webcam.canvas);
-        labelContainer = document.getElementById("label-container");
-        for (let i = 0; i < maxPredictions; i++) { // and class labels
-            labelContainer.appendChild(document.createElement("div"));
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 웹캠 인식</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* === 전체 페이지 스타일 === */
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            box-sizing: border-box;
         }
-    }
 
-    async function loop() {
-        webcam.update(); // update the webcam frame
-        await predict();
-        window.requestAnimationFrame(loop);
-    }
-
-    // run the webcam image through the image model
-    async function predict() {
-        // predict can take in an image, video or canvas html element
-        const prediction = await model.predict(webcam.canvas);
-        for (let i = 0; i < maxPredictions; i++) {
-            const classPrediction =
-                prediction[i].className + ": " + prediction[i].probability.toFixed(2);
-            labelContainer.childNodes[i].innerHTML = classPrediction;
+        /* === 메인 컨테이너 === */
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
         }
-    }
-</script>
+
+        h1 {
+            color: #1a237e; /* 진한 남색 */
+            margin-top: 0;
+            margin-bottom: 25px;
+        }
+
+        /* === 웹캠 스타일 === */
+        #webcam-container {
+            margin-bottom: 20px;
+            border-radius: 12px;
+            overflow: hidden; /* 모서리를 둥글게 */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            /* 웹캠 캔버스 크기에 맞게 조정 (JS에서 300x300으로 설정) */
+            width: 300px;
+            height: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        /* === 예측 결과 (라벨) 컨테이너 === */
+        #label-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px; /* 각 항목 사이의 간격 */
+        }
+
+        /* === 개별 예측 항목 (라벨 + 바 + 퍼센트) === */
+        .prediction-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .prediction-label {
+            font-size: 16px;
+            font-weight: 700;
+            text-align: right;
+            flex-basis: 30%; /* 라벨이 차지하는 공간 */
+        }
+
+        .prediction-bar-container {
+            flex-grow: 1; /* 남은 공간을 모두 차지 */
+            height: 24px;
+            background-color: #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .prediction-bar {
+            height: 100%;
+            background-color: #3f51b5; /* 인디고 색상 */
+            border-radius: 12px;
+            transition: width 0.2s ease-in-out; /* 너비 변경 시 부드러운 효과 */
+            width: 0%; /* 기본 너비 */
+        }
+        
+        .prediction-percent {
+            font-size: 16px;
+            font-weight: 700;
+            color: #3f51b5;
+            flex-basis: 10%; /* 퍼센트가 차지하는 공간 */
+            min-width: 40px; /* "100%"가 찌그러지지 않게 */
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🤖 AI 웹캠 인식</h1>
+        <div id="webcam-container"></div>
+        
+        <div id="label-container"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    
+    <script type="text/javascript">
+        // 모델 URL (선생님 고유 모델 주소)
+        const URL = "https://teachablemachine.withgoogle.com/models/6IfxNkm2O/";
+
+        let model, webcam, labelContainer, maxPredictions;
+
+        // Load the image model and setup the webcam
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            // 모델과 메타데이터 로드
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            // 웹캠 설정
+            const flip = true; // 좌우 반전
+            const webcamSize = 300; // 웹캠 크기 (CSS와 맞춤)
+            webcam = new tmImage.Webcam(webcamSize, webcamSize, flip);
+            await webcam.setup(); // 웹캠 접근 권한 요청
+            await webcam.play();
+            window.requestAnimationFrame(loop);
+
+            // 웹캠 캔버스를 DOM에 추가
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+            
+            // 예측 결과를 표시할 DOM 생성
+            labelContainer = document.getElementById("label-container");
+            for (let i = 0; i < maxPredictions; i++) {
+                // 각 항목(라벨 + 바 + 퍼센트)을 감쌀 div 생성
+                const wrapper = document.createElement("div");
+                wrapper.className = "prediction-wrapper";
+                labelContainer.appendChild(wrapper);
+            }
+        }
+
+        async function loop() {
+            webcam.update(); // 웹캠 프레임 업데이트
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        // 웹캠 이미지를 모델로 예측
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+            
+            for (let i = 0; i < maxPredictions; i++) {
+                // [수정] 신뢰도를 0~100 사이의 정수로 변환
+                const probability = prediction[i].probability;
+                const percent = (probability * 100).toFixed(0); // 소수점 버리고 정수로
+                const className = prediction[i].className;
+
+                // [수정] 스타일링된 HTML 구조로 업데이트
+                const predictionHTML = `
+                    <div class="prediction-label">${className}</div>
+                    <div class="prediction-bar-container">
+                        <div class="prediction-bar" style="width: ${percent}%;"></div>
+                    </div>
+                    <div class="prediction-percent">${percent}%</div>
+                `;
+                
+                // 해당 라벨 컨테이너의 내용을 HTML로 삽입
+                labelContainer.childNodes[i].innerHTML = predictionHTML;
+            }
+        }
+        
+        // [수정] 시작 버튼 없이 init() 함수를 바로 호출하여 자동 시작
+        init();
+        
+    </script>
+</body>
+</html>
