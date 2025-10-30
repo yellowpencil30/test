@@ -3,64 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 웹캠 인식</title>
+    <title>⚡ NEON AI VISION ⚡</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     
     <style>
-        /* === 전체 페이지 스타일 === */
+        /* === 전역 변수 및 기본 스타일 === */
+        :root {
+            --bg-dark: #1a0f2b; /* 진한 보라색 계열 배경 */
+            --bg-light: #2c1a4b; /* 컨테이너 배경 */
+            --neon-blue: #00e5ff; /* 네온 블루 */
+            --neon-purple: #c02bff; /* 네온 퍼플 */
+            --neon-pink: #ff0077; /* 네온 핑크 */
+            --text-light: #e0f7fa; /* 밝은 텍스트 */
+            --text-dim: #999; /* 흐린 텍스트 */
+        }
+
         body {
-            font-family: 'Noto Sans KR', sans-serif;
-            background-color: #f0f4f8;
-            color: #333;
+            font-family: 'Share Tech Mono', monospace; /* 디지털 느낌 폰트 */
+            background-color: var(--bg-dark);
+            color: var(--text-light);
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             margin: 0;
             padding: 20px;
             min-height: 100vh;
             box-sizing: border-box;
+            overflow: hidden; /* 그리드 패턴 넘치는 것 방지 */
+            position: relative;
+        }
+
+        /* === 배경 그리드 패턴 === */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(to right, rgba(0,229,255,0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0,229,255,0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            pointer-events: none;
+            z-index: 0;
         }
 
         /* === 메인 컨테이너 === */
         .container {
+            position: relative;
+            z-index: 10;
             max-width: 600px;
             width: 100%;
-            background: #ffffff;
+            background: var(--bg-light);
             padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            box-shadow: 
+                0 0 15px var(--neon-purple), /* 그림자 네온 효과 */
+                0 0 30px var(--neon-blue),
+                inset 0 0 5px rgba(255,255,255,0.1); /* 내부 밝은 그림자 */
             text-align: center;
+            border: 1px solid var(--neon-purple);
         }
 
         h1 {
-            color: #1a237e; /* 진한 남색 */
+            font-family: 'Orbitron', sans-serif; /* 제목은 좀 더 강렬하게 */
+            color: var(--neon-blue);
+            text-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-purple);
             margin-top: 0;
-            margin-bottom: 25px;
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+            font-size: 2.5em;
         }
 
-        /* === 웹캠 스타일 === */
+        /* === 웹캠 컨테이너 === */
         #webcam-container {
-            margin-bottom: 20px;
-            border-radius: 12px;
-            overflow: hidden; /* 모서리를 둥글게 */
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            /* 웹캠 캔버스 크기에 맞게 조정 (JS에서 300x300으로 설정) */
-            width: 300px;
-            height: 300px;
-            margin-left: auto;
-            margin-right: auto;
+            position: relative;
+            width: 300px; /* JS에서 설정하는 값과 동일하게 */
+            height: 300px; /* JS에서 설정하는 값과 동일하게 */
+            margin: 0 auto 25px auto;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 15px var(--neon-blue), 0 0 25px var(--neon-purple);
+            border: 2px solid var(--neon-blue);
+            background-color: #000; /* 웹캠 로딩 전 배경 */
         }
         
-        /* === 예측 결과 (라벨) 컨테이너 === */
-        #label-container {
-            display: flex;
-            flex-direction: column;
-            gap: 15px; /* 각 항목 사이의 간격 */
+        #webcam-container canvas {
+            display: block; /* 캔버스 하단의 여백 제거 */
         }
 
-        /* === 개별 예측 항목 (라벨 + 바 + 퍼센트) === */
+        /* === 로딩 스피너 === */
+        .spinner {
+            border: 4px solid rgba(0, 229, 255, 0.2);
+            border-top: 4px solid var(--neon-blue);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none; /* JS에서 활성화 */
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* === 예측 결과 (라벨) 컨테이너 === */
+        #label-container {
+            margin-top: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px; /* 각 항목 사이의 간격 */
+        }
+
+        /* === 개별 예측 항목 === */
         .prediction-wrapper {
             display: flex;
             align-items: center;
@@ -68,45 +132,66 @@
         }
 
         .prediction-label {
-            font-size: 16px;
+            font-size: 1.1em;
             font-weight: 700;
             text-align: right;
-            flex-basis: 30%; /* 라벨이 차지하는 공간 */
+            flex-basis: 35%; /* 라벨이 차지하는 공간 */
+            color: var(--neon-pink);
+            text-shadow: 0 0 5px var(--neon-pink);
         }
 
         .prediction-bar-container {
             flex-grow: 1; /* 남은 공간을 모두 차지 */
-            height: 24px;
-            background-color: #e0e0e0;
-            border-radius: 12px;
+            height: 28px;
+            background: rgba(0, 229, 255, 0.1); /* 투명한 네온 배경 */
+            border-radius: 14px;
             overflow: hidden;
+            border: 1px solid rgba(0, 229, 255, 0.4);
+            box-shadow: 0 0 8px rgba(0, 229, 255, 0.5);
         }
 
         .prediction-bar {
             height: 100%;
-            background-color: #3f51b5; /* 인디고 색상 */
-            border-radius: 12px;
-            transition: width 0.2s ease-in-out; /* 너비 변경 시 부드러운 효과 */
+            background: linear-gradient(90deg, var(--neon-blue) 0%, var(--neon-purple) 100%);
+            border-radius: 14px;
+            transition: width 0.3s ease-in-out;
             width: 0%; /* 기본 너비 */
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.7);
         }
         
         .prediction-percent {
-            font-size: 16px;
+            font-size: 1.1em;
             font-weight: 700;
-            color: #3f51b5;
-            flex-basis: 10%; /* 퍼센트가 차지하는 공간 */
-            min-width: 40px; /* "100%"가 찌그러지지 않게 */
+            color: var(--neon-blue);
+            text-shadow: 0 0 5px var(--neon-blue);
+            flex-basis: 15%; /* 퍼센트가 차지하는 공간 */
+            min-width: 50px; /* "100%"가 찌그러지지 않게 */
             text-align: left;
+        }
+
+        /* === 푸터 (선택 사항) === */
+        .footer {
+            margin-top: 40px;
+            font-size: 0.9em;
+            color: var(--text-dim);
+            text-shadow: 0 0 2px rgba(0, 229, 255, 0.2);
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>🤖 AI 웹캠 인식</h1>
-        <div id="webcam-container"></div>
+        <h1>⚡ NEON AI VISION ⚡</h1>
+        
+        <div id="webcam-container">
+            <div class="spinner" id="webcam-spinner"></div>
+        </div>
         
         <div id="label-container"></div>
+
+        <div class="footer">
+            <p>&copy; 2023 Teachable Machine Integration</p>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
@@ -117,31 +202,36 @@
         const URL = "https://teachablemachine.withgoogle.com/models/6IfxNkm2O/";
 
         let model, webcam, labelContainer, maxPredictions;
+        const webcamSpinner = document.getElementById('webcam-spinner');
 
-        // Load the image model and setup the webcam
         async function init() {
+            // 스피너 표시
+            webcamSpinner.style.display = 'block';
+
             const modelURL = URL + "model.json";
             const metadataURL = URL + "metadata.json";
 
-            // 모델과 메타데이터 로드
+            // 모델 로드
             model = await tmImage.load(modelURL, metadataURL);
             maxPredictions = model.getTotalClasses();
 
             // 웹캠 설정
-            const flip = true; // 좌우 반전
-            const webcamSize = 300; // 웹캠 크기 (CSS와 맞춤)
+            const flip = true; 
+            const webcamSize = 300; // CSS와 동일하게 설정
             webcam = new tmImage.Webcam(webcamSize, webcamSize, flip);
-            await webcam.setup(); // 웹캠 접근 권한 요청
+            await webcam.setup(); 
             await webcam.play();
             window.requestAnimationFrame(loop);
 
             // 웹캠 캔버스를 DOM에 추가
             document.getElementById("webcam-container").appendChild(webcam.canvas);
             
+            // 스피너 숨김
+            webcamSpinner.style.display = 'none';
+
             // 예측 결과를 표시할 DOM 생성
             labelContainer = document.getElementById("label-container");
             for (let i = 0; i < maxPredictions; i++) {
-                // 각 항목(라벨 + 바 + 퍼센트)을 감쌀 div 생성
                 const wrapper = document.createElement("div");
                 wrapper.className = "prediction-wrapper";
                 labelContainer.appendChild(wrapper);
@@ -149,19 +239,17 @@
         }
 
         async function loop() {
-            webcam.update(); // 웹캠 프레임 업데이트
+            webcam.update(); 
             await predict();
             window.requestAnimationFrame(loop);
         }
 
-        // 웹캠 이미지를 모델로 예측
         async function predict() {
             const prediction = await model.predict(webcam.canvas);
             
             for (let i = 0; i < maxPredictions; i++) {
-                // [수정] 신뢰도를 0~100 사이의 정수로 변환
                 const probability = prediction[i].probability;
-                const percent = (probability * 100).toFixed(0); // 소수점 버리고 정수로
+                const percent = (probability * 100).toFixed(0); 
                 const className = prediction[i].className;
 
                 // [수정] 스타일링된 HTML 구조로 업데이트
@@ -173,12 +261,11 @@
                     <div class="prediction-percent">${percent}%</div>
                 `;
                 
-                // 해당 라벨 컨테이너의 내용을 HTML로 삽입
                 labelContainer.childNodes[i].innerHTML = predictionHTML;
             }
         }
         
-        // [수정] 시작 버튼 없이 init() 함수를 바로 호출하여 자동 시작
+        // 시작 버튼 없이 init() 함수를 바로 호출하여 자동 시작
         init();
         
     </script>
